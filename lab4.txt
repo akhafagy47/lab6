@@ -1,1 +1,23 @@
 Answer written questions here:
+
+1. Why start the doubling-iteration scheme from a low number?
+Every pixel's mandelbrotSmooth call must finish before the frame can be shown, so the frame time
+grows with maxIters (black/in-set pixels always cost the full maxIters). Starting low (50) means
+frames while the user is panning/zooming/resizing finish quickly and the viewer stays responsive,
+and detail is only refined (doubling up to 3200) once the view stops changing and the user can
+afford to wait for it.
+
+2. Parallelizing rendering for high iteration counts.
+Since each pixel is independent, a coordinator thread can split the image into tiles (e.g., blocks
+of rows), hand each tile to a worker thread/core/machine from a pool (with the current world bounds
+and maxIters), and wait for all workers to return their coloured pixels before copying the buffer
+to the GPU. Using many small tiles handed out dynamically (a work queue) balances the load, since
+tiles covering the set (black) take far longer than tiles that escape quickly.
+
+3. Sampling 4 subpixels per pixel and averaging.
+Visually, this is supersampling anti-aliasing: averaging 4 samples low-pass filters the
+high-frequency detail, so the speckled noise becomes a smoother blend of colours and the jaggies
+along the set boundary are softened (though not eliminated, since 4 samples is still a finite
+sampling rate). Performance-wise, it costs about 4x as many mandelbrotSmooth calls per frame,
+so roughly 4x the render time (worse for in-set samples that run all maxIters), which hurts
+responsiveness unless combined with parallelism or only applied once the view is stationary.
